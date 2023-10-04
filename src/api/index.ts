@@ -1,31 +1,8 @@
-// ------ /user/login ------
-export interface loginType {
-    username: string,
-    password: string
+import request from '@/utils/request.ts'
+import type { loginType, loginResponseData, userInfoResponseData } from '@/api/indexType.ts'
+enum API{
+    LOGIN_URL= '/user/login',
+    USERINFO_UR = '/user/info'
 }
-export interface loginResponseData {
-    code: number,
-    data: {
-        token: string
-    }
-}
-// ------ /user/login ------
-// ------ /user/info ------
-interface userInfo {
-    userID: number,
-    avatar: string,
-    userName: string,
-    password: string,
-    desc: string,
-    roles: string[],
-    buttons: string[],
-    routes: string[],
-    token: string
-}
-export interface userInfoResponseData {
-    code: number,
-    data: {
-        checkUser: userInfo
-    }
-}
-// ------ /user/info ------
+export const reqLogin = (data: loginType) => request.post<any, loginResponseData>(API.LOGIN_URL, data)
+export const reqUserInfo = () => request.get<any, userInfoResponseData>(API.USERINFO_UR)

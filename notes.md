@@ -726,7 +726,8 @@ export interface loginType {							/* 类型接口 - login 接口携带的数据
 export interface loginResponseData {					        /* 类型接口 login 接口服务器返回数据 */
     code: number,
     data: {
-        token: string
+        token?: string,								/* 可选字段，登录成功有 token，失败没有 */
+        message?: string							/* 可选字段，登陆成功有 message，失败没有 */
     }
 }
 ...
@@ -783,7 +784,7 @@ export const reqUserInfo = () => request.get<any, userResponseData>(API.USERINFO
 
 ```vue
 <script setup lang="ts">
-    import {reqLogin} from '@/api/indexType.ts'				        /* 引入 API 接口 */
+    import {reqLogin} from '@/api/index.ts'				        /* 引入 API 接口 */
     import {onMounted} from 'vue'					        /* Vue3 API组件 */
     onMounted(()=>{
         reqLogin({								/* 调用接口发起请求 */
@@ -850,3 +851,367 @@ app.use(router)									/* 注册路由 */
 ```
 
 ---
+
+## login 模块
+
+login 模块界面开发...
+
+```vue
+<template>
+	<input v-model="loginFrom.username">			    	        <!-- 双向绑定数据 -->
+	<input v-model="loginFrom.password">
+	<button @click='login'></button>
+</template>
+<script setup lang='ts'>
+    import {reactive} from 'vue'					        /* Vue3组件式API，数据变化时相关视图会自动更新 */
+	let loginFrom = reactive({username: '', password: ''})
+    
+    /*
+    *	登录事件通知仓库发起请求
+    *	请求成功 -> 跳转首页
+    *	请求失败 -> 反馈失败信息
+    */
+    const login = ()=>{
+        ...
+    }
+</script>
+```
+
+### Pinia
+
+**`Pinia` 是一个用于管理 `Vue.js` 应用状态的状态管理库。与 `Vuex` 不同，`Pinia` 专注于提供更具模块化和类型安全的状态管理方案。以下是一些关键特点和概念：**
+
+- **模块化：** `Pinia` 鼓励将状态拆分为多个模块，每个模块负责管理特定的状态和操作。这使得代码更具组织性和可维护性，特别是在大型应用中。
+- **类型安全：** `Pinia` 利用 `TypeScript` 的类型系统来提供类型安全性。这意味着你可以在编码时捕获潜在的错误，并获得更好的代码智能感知。
+- **响应式：** `Pinia` 使用 `Vue3` 的响应式系统来处理状态的更新和依赖追踪。这意味着当状态变化时，与之相关的组件会自动更新。
+- **插件系统：** `Pinia` 提供了一个插件系统，允许你扩展其功能，例如添加中间件、开发工具支持等。
+- **Devtools 集成：** `Pinia` 集成了`Vue Devtools`，使你能够方便地调试和监视状态的变化。
+- **性能优化：** `Pinia` 采用了一些性能优化策略，以确保状态管理在大型应用中也能够高效运行。
+- 总的来说，`Pinia` 是一个现代化的状态管理解决方案，特别适用于 `Vue3` 应用，并提供了更好的模块化和类型安全性，以及与 `Vue` 生态系统的紧密集成。如果你正在开发使用 `Vue3` 的应用程序，可以考虑使用 `Pinia` 来管理你的应用状态。
+
+ **安装 - Pinia**
+
+```
+npm install pinia
+```
+
+在`src`文件中新建`store/index.ts`文件集中管理项目中的全部模块仓库
+
+```typescript
+// store/index.ts
+import { createPinia } from 'pinia'				                /* 从 Pinia 引入创建大仓库的方法 createPinia */
+let pinia = createPinia()							/* 创建大仓库 */
+export default pinia								/* 暴露大仓库 */
+```
+
+`main.ts`引入&使用
+
+```typescript
+import pinia from '@/store/index.ts'						/* 引入 */
+...
+app.use(pinia)									/* 使用 */
+```
+
+通过运行项目在浏览器中`Vue`开发者工具中可以看见`Pinia`选项，**Edge** 浏览器可能没有可以用 **Google**
+
+![](public/Pinia_img.png)
+
+再建`modules`文件里面放置多个小仓库模块分别管理数据
+
+- 例如`modules/user.ts`创建用户信息相关的小仓库
+
+    ```typescript
+    import { defineStore } from 'pinia'					    /* 引入 defineStore方法 */
+    let useUserStore = defineStore('User',{					    /* 创建小仓库 */
+        state:()=>{								    /* 存储数据 */
+            return {
+                test: "abc"							    /* 测试数据 */
+            }
+        },
+        actions: {								    /* 异步|逻辑|提交 mutations */
+    
+        },
+        getters: {								    /* 计算属性 */
+    
+        }
+    })
+    
+    export default useUserStore
+    
+    ```
+
+组件中引入使用，此时`Vue`开发者工具中可见到仓库数据了
+
+```vue
+<script setup lang='ts'>
+    import useUserStore from '@/store/modules/user.ts'				/* 引入仓库 */
+	let useStore = useUserStore()						/* 获取使用 */
+</script>
+```
+
+![](public/Pinia_store.png)
+
+发起登录请求，引入`api`接口
+
+```vue
+<!-- login.vue -->
+<template>
+	<input v-model="loginFrom.username">
+	<input v-model="loginFrom.password">
+	<button @click='login'></button>
+</template>
+<script setup lang='ts'>
+    import {reactive} from 'vue'
+	import useUserStore from '@/store/modules/user.ts'		        /* 引入user模块仓库 */
+    import {useRouter} from 'vue-router'					/* 获取 router 路由 */
+	let $router = useRouter()						/* 获取路由器 */
+	let useStore = useUserStore()
+	
+	let loginFrom = reactive({username: '', password: ''})                  /* 双向绑定数据，并合并到对象中 */
+	const login = async ()=>{
+    try {
+        await useStore.userLogin(loginFrom)			                /* 调用仓库中写好的 userLogin 方法，传递参数 */
+        // 可使用 Element-plus 做成功提示...
+        await $router.push('/')							/* 跳转路由 */
+    } catch (error){
+        // 可使用 Element-plus 做错误提示...
+    }
+}
+   ...
+</script>
+```
+
+```typescript
+// modules/user.ts
+import { defineStore } from 'pinia'
+import {reqLogin} from '@/api'							/* 引入接口 */
+import type {loginType} from '@/api/indexType.ts'				/* 引入类型 */
+
+let useUserStore = defineStore('User',{
+    state:()=>{
+        return {
+            // 从本地存储中获取 token，每次刷新 Pinia仓库就会从本地存储中获取token
+            token: localStorage.getItem("TOKEN")
+        }
+    },
+    actions: {
+        async userLogin(data: loginType){				        /* 登录接口，data 参数 */
+            let result: any = await reqLogin(data)			        /* 发起请求，暂且定义 any 类型 */
+            console.log(result.data)					        /* 打印数据 */
+            if (result.code === 200) {					        /* code=200 请求成功 */
+                this.token = result.data.token			                /* 将 token 储存本地 Pinia 仓库中 */
+                localStorage.setItem("TOKEN", result.data.token)	        /* 存到本地存储中 */
+                return 'ok'							/* 保证当前 async 函数返回一个成功的 Promise */
+            } else {
+                return Promise.reject(new Error(result.data.message))		/* 返回一个失败的 Promise */
+            }
+        }
+    },
+    getters: {
+    }
+})
+
+export default useUserStore
+```
+
+### Pinia 仓库 TS 类型定义
+
+> `store`仓库中还有一些数据没有定义数据类型，需要我们定义`TS`类型，此时我们以`user.ts`仓库为例：
+
+**哪些数据需要定义类型？**
+
+1. `state`：是一个函数，函数返回的对象的类型需要定义！
+
+2. 上面做的登录接口`userLogin()`返回的数据`result`没有定义类型！
+
+    - 在`store`文件夹新建`types/type.ts`文件，专门用来定义小仓库数据`state`类型
+
+        ```typescript
+        export interface UserState {
+            token: string | null
+        }
+        ```
+    
+    - 登录接口只有`成功`和`失败`两种情况，接口返回数据可以用`indexType.ts`种 **login 接口服务器返回数据的数据类型**
+    
+    ```typescript
+    import {loginResponseData} from '@/api/indexType.ts'				/* 引入类型 */
+    import {UserState} from '@/store/types/type.ts'					/* 引入类型 */
+    
+    let useUserStore = defineStore('User',{
+        state:():UserState=>{						        /* 定义 state 函数返回类型 */
+            return {
+                token: localStorage.getItem("TOKEN")
+            }
+        },
+        actions: {
+            async userLogin(data: loginType){
+                let result: loginResponseData = await reqLogin(data)		/* 定义 result 数据类型 */
+                if (result.code === 200) {
+                    this.token = (result.data.token as string)			/* 通过 as 进行类型断言 */
+                    localStorage.setItem("TOKEN", (result.data.token as string))	/* 通过 as 进行类型断言 */
+                    return 'ok'
+                }else {
+                    return Promise.reject(new Error(result.data.message))
+                }
+            }
+        },
+        ......
+    })
+    export default useUserStore
+    ```
+    
+    > **断言**（使用 `as` 关键字）的作用是告诉编译器，你知道某个值的确具有特定的类型，即强制将一个值视为所断言的类型，以避免类型检查错误。在你提到的代码中
+
+###  时间封装
+
+<u>用户登录成功时会有一个反馈组件（Element-plus），我们要判断用户登录的时间提示出【上午好 | 下午好 | 晚上好】</u>
+
+**我们通过内置的构造函数`Date`实现**
+
+```vue
+<script>
+    const login =()=>{
+        ElMessage({
+        	message: getTime(),						    /* 调用方法 */
+        	type: 'success',
+    	})
+    }
+    const getTime = ()=>{							    /* 时间函数 */
+    let message:string
+    let hours = new Date().getHours()
+    if (hours<=9) {
+        message = '登陆成功，早上好！'
+        return message
+    }
+    else if (hours<=12) {
+        message = '登陆成功，上午好！'
+        return message
+    }
+    else if (hours<=18) {
+        message = '登陆成功，下午好！'
+        return message
+    }
+    else {
+        message = '登录成功，晚上好！'
+        return message
+    }
+}
+</script>
+```
+
+### 表单校验
+
+> 表单验证可以使用`Element-plus`的组件，或者自己手写，看个人需求。此项目中我们`Element-plus`组件即可。
+
+**例：**
+
+1. 双向绑定，将表单中的数据绑定到 `loginForm` 对象上。
+2. TS 中添加 rules 规则对象，组件`<el-form>`绑定`rules`规则
+3. 组件`<el-form-item>`中添加`prop`属性，属性值为校验的字段的名字。
+4. 写校验规则，一个规则一个对象。
+5. 点击登录按钮时对表单项所有规则进行校验，全部通过了再发请求。<small>[表单事件方法](https://element-plus.org/zh-CN/component/form.html#form-exposes)</small>
+6. 
+
+```vue
+<template>
+	<el-form
+         :model="loginFrom"
+         :rules="rules"
+         :ref="loginForms">
+        <!--
+		1. 双向绑定数据
+		2. TS 中添加 rules 规则对象，组件绑定 rules 规则对象
+		5. 绑定 ref，获取 DOM 元素
+	-->
+    	<el-form-item prop="username">					        <!-- 3. prop="校验字段" -->
+    	    <el-input v-model="loginFrom.username" type="text" autocomplete="off"/>
+    	</el-form-item>
+    	<el-form-item prop="password">					        <!-- 3. prop="校验字段" -->
+    	    <el-input v-model="loginFrom.password" type="password" autocomplete="off"/>
+    	</el-form-item>
+    	<el-form-item>
+    	    <el-button type="primary" @click="login">Submit</el-button>
+    	</el-form-item>
+    </el-form>
+</template>
+<script>
+    import {reactive, ref} from 'vue'
+    
+    let loginFroms = ref()							/* 5. 获取表单元素，引入 VC 实例 */
+    let loginFrom = reactive({username: '', password: ''})			/* 1. 表单数据 */
+    const rules = {								/* 2.表达校验对象 */
+        username: [								/* 3 username 校验 */
+            {}									/* 4.规则校验对象，一个规则一个对象 */
+        ]
+    }
+    
+    const login = async ()=>{
+        console.log(loginFroms.value)					        /* 5. 打印查看是否含有validate属性，validate校验所有表单规则 */
+        await loginFroms.value.validate()				        /* 触发登陆事件时调用该validate()方法校验全部规则 */
+        ...
+        try{...} catch{...}
+    }
+</script>
+```
+
+**校验规则解析：**<small>[API官方文档](https://element-plus.org/zh-CN/component/form.html#formitem-attributes)</small>
+
+```typescript
+const rules = {
+    username: [
+		{ required: true, message: '用户名不能为空', trigger: 'blur' },	/* 规则1 */
+	    { required: true, min: 2, max: 10, message: '用户名长度为2~10个字符', trigger: 'change' }	/* 规则2 */
+	]
+}
+```
+
+- `required`：规定该字段是否必须校验 `true`|`false`
+- `message`：规定错误提示信息 `string`
+- `trigger`：规定触发时机 `blur`<small>(失去焦点)</small>|`change`<small>(文本改变)</small>
+- `min`&`max`：规定文本长度
+- `validate()`：**Element-plus** 组件自带的属性，作用是触发全部表单的校验规则
+
+### 自定义校验规则
+
+通过`validators`属性来添加自定义校验规则
+
+```vue
+<template>
+	<el-form>
+        <el-form-item prop="password">						<!-- 2. 绑定validator校验字段 -->
+            <el-input/>
+        </el-form-item>
+    </el-form>
+</template>
+```
+
+```typescript
+const validatorUserName=(rule:any,value:any,callback:any)=>{			/* 3. 自定义校验规则方法 */
+    if (value.length >= 5) {
+        callback()								/* 符合条件 - 放行 */
+    } else callback(new Error('不正确！'))					/* 不符合条件 - 错误提示 */
+}
+const rules = {
+    password: [
+    	...
+    	{ trigger: 'change', validator: validatorUserName }		        /* 1. validators:方法函数名 */
+	]
+}
+```
+
+
+
+**自定义校验解析：**
+
+- `validator`：属性值为自定义校验的函数名。
+- `validatorUserName`中的三个参数：
+    - `rule`：该表单字段的校验规则。
+    - `value`：该表单的文本内容。
+    - `callbcak`：函数：如果符合条件`callback`放行通过，如果不符合条件`callback`注入错误提示信息。
+
+---
+
+## layout 模块
+
+<u>一级路由静态布局的搭建</u>
